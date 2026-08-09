@@ -1,5 +1,12 @@
-import numpy as np
+import math
+
 import numpy.typing as npt
+import numpy as np
+
+from src.derivatives.european_call import (
+    black_scholes_call,
+    black_scholes_delta
+)
 
 
 def delta_hedge_path(
