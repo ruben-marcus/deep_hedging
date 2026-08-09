@@ -17,21 +17,27 @@ def simulate_gbm(
     ----------
     S0 : float
         initial stock price
+
     sigma : float
         annualized volatility
+
     T : float
         time horizon in years
+
     n_steps : int
         number of simulation/hedging steps
+
     n_paths : int
         number of monte carlo paths
+
     r : float
         risk-free rate
+
     seed : int or None
         random seed for reproducibility
 
     returns
-    ----------
+    -------
     paths : np.ndarray
         shape: (n_paths, n_steps + 1)
 

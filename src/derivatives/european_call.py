@@ -20,14 +20,19 @@ def black_scholes_call(
     ----------
     S : float
         current stock price
+
     K : float
         strike price
+
     sigma : float
         annualized volatility
+
     T : float
         maturity time in years
+
     t : float
         current time in years
+
     r : float
         risk-free rate
     """
