@@ -1,5 +1,7 @@
 import numpy as np
 
+from src.models.base import SimulationResult
+
 
 def simulate_gbm(
     S0: float,
@@ -9,7 +11,7 @@ def simulate_gbm(
     n_paths: int,
     r: float = 0.0,
     seed: int | None = None,
-):
+) -> SimulationResult:
     """
     simulate geometric brownian motion under risk-neutral measure with r = 0
 
@@ -38,8 +40,9 @@ def simulate_gbm(
 
     returns
     -------
-    paths : np.ndarray
-        shape: (n_paths, n_steps + 1)
+    SimulationResult
+        spot of shape (n_paths, n_steps + 1)
+        variance is None
 
     """
 
@@ -72,4 +75,4 @@ def simulate_gbm(
     paths[:, 0] = S0
     paths[:, 1:] = S0 * np.exp(log_paths)
 
-    return paths
+    return SimulationResult(spot=paths, variance=None)
