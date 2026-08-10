@@ -1,18 +1,32 @@
-import math
+import numpy as np
+from scipy.special import ndtr
 
 
-def norm_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+def _scalar_if_scalar(x):
+    x = np.asarray(x)
+
+    if x.ndim == 0:
+        return x.item()
+
+    return x
+
+
+def european_call_payoff(S, K):
+    S = np.asarray(S, dtype=float)
+
+    payoff = np.maximum(S - K, 0.0)
+
+    return _scalar_if_scalar(payoff)
 
 
 def black_scholes_call(
-    S: float,
-    K: float,
-    sigma: float,
-    T: float,
-    t: float = 0.0,
-    r: float = 0.0,
-) -> float:
+    S,
+    K,
+    sigma,
+    T,
+    t=0.0,
+    r=0.0,
+):
     """
     black-scholes price of a european call option
 
@@ -37,7 +51,10 @@ def black_scholes_call(
         risk-free rate
     """
 
-    if S <= 0:
+    S = np.asarray(S, dtype=float)
+    tau = np.asarray(T, dtype=float) - np.asarray(t, dtype=float)
+
+    if np.any(S <= 0):
         raise ValueError("S must be positive")
 
     if K <= 0:
@@ -46,37 +63,43 @@ def black_scholes_call(
     if sigma <= 0:
         raise ValueError("sigma must be positive")
 
-    tau = T - t
-
-    if tau < 0:
+    if np.any(tau < 0):
         raise ValueError("t cannot be greater than T")
 
-    if tau == 0:
-        return max(S - K, 0.0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sqrt_tau = np.sqrt(tau)
 
-    sqrt_tau = math.sqrt(tau)
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
+        d2 = d1 - sigma * sqrt_tau
 
-    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
-    d2 = d1 - sigma * sqrt_tau
+        price = S * ndtr(d1) - K * np.exp(-r * tau) * ndtr(d2)
 
-    call_price = S * norm_cdf(d1) - K * math.exp(-r * tau) * norm_cdf(d2)
+    # at expiry use payoff directly
+    price = np.where(
+        tau == 0,
+        np.maximum(S - K, 0.0),
+        price
+    )
 
-    return call_price
+    return _scalar_if_scalar(price)
 
 
 def black_scholes_delta(
-    S: float,
-    K: float,
-    sigma: float,
-    T: float,
-    t: float = 0.0,
-    r: float = 0.0,
+    S,
+    K,
+    sigma,
+    T,
+    t=0.0,
+    r=0.0,
 ) -> float:
     """
     black-scholes delta of a european call option
     """
 
-    if S <= 0:
+    S = np.asarray(S, dtype=float)
+    tau = np.asarray(T, dtype=float) - np.asarray(t, dtype=float)
+
+    if np.any(S <= 0):
         raise ValueError("S must be positive")
 
     if K <= 0:
@@ -85,21 +108,26 @@ def black_scholes_delta(
     if sigma <= 0:
         raise ValueError("sigma must be positive")
 
-    tau = T - t
-
-    if tau < 0:
+    if np.any(tau < 0):
         raise ValueError("t cannot be greater than T")
 
-    if tau == 0:
-        if S > K:
-            return 1.0
-        elif S < K:
-            return 0.0
-        else:
-            return 0.5  # convention
+    with np.errstate(divide="ignore", invalid="ignore"):
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2)
+              * tau) / (sigma * np.sqrt(tau))
 
-    sqrt_tau = math.sqrt(tau)
+        delta = ndtr(d1)
 
-    d1 = (math.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
+    # convention at expiration
+    expiry_delta = np.where(
+        S > K,
+        1.0,
+        np.where(S < K, 0.0, 0.5)
+    )
 
-    return norm_cdf(d1)
+    delta = np.where(
+        tau == 0,
+        expiry_delta,
+        delta
+    )
+
+    return _scalar_if_scalar(delta)
