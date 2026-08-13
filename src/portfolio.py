@@ -1,7 +1,8 @@
 import numpy as np
+import torch
 
 
-def run_self_financing_hedge(
+def run_hedge(
     stock_paths,
     initial_premium,
     position_fn,
@@ -108,3 +109,99 @@ def run_self_financing_hedge(
         result["cash_history"] = cash_history
 
     return result
+
+
+def run_hedge_torch(
+    model,
+    spot_paths,
+    variance_paths,
+    K,
+    T,
+    premium,
+    transaction_cost_rate=0.0,
+    r=0.0,
+    variance_scale=0.04
+):
+    """
+    parameters
+    ----------
+    spot_paths : tensor
+        shape (batch_size, n_steps + 1)
+
+    variance_paths : tensor
+        shape (batch_size, n_steps + 1)
+
+    returns
+    -------
+    pnl : tensor
+        shape (batch_size,)
+    """
+
+    batch_size, n_observations = spot_paths.shape
+
+    n_steps = n_observations - 1
+
+    dt = T / n_steps
+
+    device = spot_paths.device
+    dtype = spot_paths.dtype
+
+    cash = torch.full(
+        (batch_size,),
+        float(premium),
+        device=device,
+        dtype=dtype
+    )
+
+    shares = torch.zeros(
+        batch_size,
+        device=device,
+        dtype=dtype
+    )
+
+    total_cost = torch.zeros_like(shares)
+
+    growth = torch.exp(
+        torch.tensor(r * dt, device=device, dtype=dtype)
+    )
+
+    for i in range(n_steps):
+        if i > 0:
+            cash = cash * growth
+
+        S_t = spot_paths[:, i]
+        v_t = variance_paths[:, i]
+
+        t = i * dt
+
+        log_moneyness = torch.log(S_t / K)
+        variance_feature = v_t / variance_scale
+        tau_feature = torch.full_like(S_t, (T - t) / T)
+
+        state = torch.stack([
+            log_moneyness,
+            variance_feature,
+            tau_feature,
+            shares
+        ], dim=1)
+
+        target_shares = model(state)
+
+        trade = target_shares - shares
+        transaction_cost = transaction_cost_rate * S_t * torch.abs(trade)
+
+        cash = cash - trade * S_t - transaction_cost
+        total_cost = total_cost + transaction_cost
+
+        shares = target_shares
+
+    # final cash accrual
+    cash = cash * growth
+
+    S_T = spot_paths[:, -1]
+
+    terminal_portfolio = cash + shares * S_T
+    payoff = torch.relu(S_T - K)
+    pnl = terminal_portfolio - payoff
+
+    return pnl, total_cost

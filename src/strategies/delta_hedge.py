@@ -9,7 +9,7 @@ from src.derivatives.european_call import (
     european_call_payoff
 )
 
-from src.portfolio import run_self_financing_hedge
+from src.portfolio import run_hedge
 
 
 def run_delta_hedge(
@@ -47,7 +47,7 @@ def run_delta_hedge(
     def payoff_fn(S_T):
         return european_call_payoff(S_T, K)
 
-    return run_self_financing_hedge(
+    return run_hedge(
         stock_paths=stock_paths,
         initial_premium=premium,
         position_fn=position_fn,
