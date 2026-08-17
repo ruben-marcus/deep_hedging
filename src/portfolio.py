@@ -2,6 +2,7 @@ import numpy as np
 import torch
 
 
+# eventually change to return same diagnostics as run_hedge_torch
 def run_hedge(
     stock_paths,
     initial_premium,
@@ -47,9 +48,10 @@ def run_hedge(
     ).copy()
 
     cash = premium.copy()
-    shares = np.zeros(n_paths)
-
-    cumulative_costs = np.zeros(n_paths)
+    shares = np.zeros(n_paths, dtype=float)
+    total_cost = np.zeros(n_paths, dtype=float)
+    share_turnover = np.zeros(n_paths, dtype=float)
+    notional_turnover = np.zeros(n_paths, dtype=float)
 
     if record_history:
         positions = np.empty((n_paths, n_steps))
@@ -68,12 +70,18 @@ def run_hedge(
         target_shares = np.broadcast_to(target_shares, (n_paths,)).copy()
 
         trade = target_shares - shares
-        transaction_cost = transaction_cost_rate * S_i * np.abs(trade)
+        abs_trade = np.abs(trade)
+
+        share_turnover += abs_trade
+
+        traded_notional = S_i * abs_trade
+        notional_turnover += traded_notional
+
+        transaction_cost = transaction_cost_rate * traded_notional
+        total_cost += transaction_cost
 
         cash -= trade * S_i
         cash -= transaction_cost
-
-        cumulative_costs += transaction_cost
 
         shares = target_shares
 
@@ -98,7 +106,9 @@ def run_hedge(
         "terminal_portfolio": terminal_portfolio,
         "terminal_cash": cash,
         "terminal_shares": shares,
-        "transaction_costs": cumulative_costs,
+        "transaction_costs": total_cost,
+        "share_turnover": share_turnover,
+        "notional_turnover": notional_turnover,
         "initial_premium": premium
     }
 
@@ -159,6 +169,8 @@ def run_hedge_torch(
         dtype=dtype
     )
 
+    share_turnover = torch.zeros_like(shares)
+    notional_turnover = torch.zeros_like(shares)
     total_cost = torch.zeros_like(shares)
 
     growth = torch.exp(
@@ -188,10 +200,17 @@ def run_hedge_torch(
         target_shares = model(state)
 
         trade = target_shares - shares
-        transaction_cost = transaction_cost_rate * S_t * torch.abs(trade)
+        abs_trade = torch.abs(trade)
+
+        share_turnover = share_turnover + abs_trade
+
+        traded_notional = S_t * abs_trade
+        notional_turnover = notional_turnover + traded_notional
+
+        transaction_cost = transaction_cost_rate * traded_notional
+        total_cost = total_cost + transaction_cost
 
         cash = cash - trade * S_t - transaction_cost
-        total_cost = total_cost + transaction_cost
 
         shares = target_shares
 
@@ -204,4 +223,9 @@ def run_hedge_torch(
     payoff = torch.relu(S_T - K)
     pnl = terminal_portfolio - payoff
 
-    return pnl, total_cost
+    return {
+        "pnl": pnl,
+        "transaction_costs": total_cost,
+        "share_turnover": share_turnover,
+        "notional_turnover": notional_turnover
+    }
