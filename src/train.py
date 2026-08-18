@@ -66,7 +66,8 @@ def fit(
     history = []
 
     best_val_loss = float("inf")
-    best_state = None
+    best_model_state = None
+    best_loss_state = None
 
     for epoch in range(1, n_epochs + 1):
         train_loss = train_one_epoch(
@@ -92,9 +93,18 @@ def fit(
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            best_state = copy.deepcopy(model.state_dict())
+            best_model_state = copy.deepcopy(model.state_dict())
 
-    model.load_state_dict(best_state)
+            if isinstance(loss_fn, torch.nn.Module):
+                best_loss_state = copy.deepcopy(loss_fn.state_dict())
+
+    model.load_state_dict(best_model_state)
+
+    if (
+        best_loss_state is not None
+        and isinstance(loss_fn, torch.nn.Module)
+    ):
+        loss_fn.load_state_dict(best_loss_state)
 
     return history
 
