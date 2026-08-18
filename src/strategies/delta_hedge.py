@@ -19,20 +19,24 @@ def run_delta_hedge(
     T,
     r=0.0,
     transaction_cost_rate=0.0,
-    record_history=False
+    record_history=False,
+    initial_premium=None
 ):
     stock_paths = np.asarray(stock_paths, dtype=float)
 
     S0 = stock_paths[:, 0]
 
-    premium = black_scholes_call(
-        S=S0,
-        K=K,
-        sigma=sigma,
-        T=T,
-        t=0.0,
-        r=r
-    )
+    if initial_premium is None:
+        premium = black_scholes_call(
+            S=S0,
+            K=K,
+            sigma=sigma,
+            T=T,
+            t=0.0,
+            r=r
+        )
+    else:
+        premium = initial_premium
 
     def position_fn(S, t):
         return black_scholes_delta(
