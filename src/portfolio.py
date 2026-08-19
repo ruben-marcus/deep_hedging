@@ -1,4 +1,5 @@
 from typing import Callable
+
 import numpy as np
 import numpy.typing as npt
 import torch
@@ -147,7 +148,7 @@ def run_hedge(
         "transaction_costs": total_cost,
         "share_turnover": share_turnover,
         "notional_turnover": notional_turnover,
-        "initial_premium": premium
+        "initial_premium": premium,
     }
 
     if record_history:
@@ -159,6 +160,44 @@ def run_hedge(
     return result
 
 
+def build_state(
+    S: torch.Tensor,
+    v: torch.Tensor | float,
+    t: float,
+    shares: torch.Tensor | float,
+    K: float,
+    T: float,
+    variance_scale: float = 0.04,
+) -> torch.Tensor:
+    """
+    hedging state fed to policy, shape (batch_size, 4)
+
+    features:
+        log moneyness, scaled variance, time to maturity, current shares
+
+    run_hedge_torch and notebook policy plots both go through here
+
+    v and shares may be scalars, broadcast to shape of S
+    """
+
+    def feature(x: torch.Tensor | float) -> torch.Tensor:
+        if torch.is_tensor(x):
+            return x
+        else:
+            return torch.full_like(S, float(x))
+
+    log_moneyness = torch.log(S / K)
+    variance_feature = feature(v) / variance_scale
+    tau_feature = torch.full_like(S, (T - t) / T)
+
+    return torch.stack([
+        log_moneyness,
+        variance_feature,
+        tau_feature,
+        feature(shares),
+    ], dim=1)
+
+
 def run_hedge_torch(
     model: nn.Module,
     spot_paths: torch.Tensor,
@@ -168,7 +207,7 @@ def run_hedge_torch(
     premium: float,
     transaction_cost_rate: float = 0.0,
     r: float = 0.0,
-    variance_scale: float = 0.04
+    variance_scale: float = 0.04,
 ) -> dict[str, torch.Tensor]:
     """
     differentiable version of run_hedge for short european call
@@ -211,13 +250,13 @@ def run_hedge_torch(
         (batch_size,),
         float(premium),
         device=device,
-        dtype=dtype
+        dtype=dtype,
     )
 
     shares = torch.zeros(
         batch_size,
         device=device,
-        dtype=dtype
+        dtype=dtype,
     )
 
     share_turnover = torch.zeros_like(shares)
@@ -238,17 +277,15 @@ def run_hedge_torch(
 
         t = i * dt
 
-        # normalized features
-        log_moneyness = torch.log(S_t / K)
-        variance_feature = v_t / variance_scale
-        tau_feature = torch.full_like(S_t, (T - t) / T)
-
-        state = torch.stack([
-            log_moneyness,
-            variance_feature,
-            tau_feature,
-            shares
-        ], dim=1)
+        state = build_state(
+            S=S_t,
+            v=v_t,
+            t=t,
+            shares=shares,
+            K=K,
+            T=T,
+            variance_scale=variance_scale,
+        )
 
         target_shares = model(state)
 
@@ -280,5 +317,5 @@ def run_hedge_torch(
         "pnl": pnl,
         "transaction_costs": total_cost,
         "share_turnover": share_turnover,
-        "notional_turnover": notional_turnover
+        "notional_turnover": notional_turnover,
     }

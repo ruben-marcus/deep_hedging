@@ -138,13 +138,13 @@ def black_scholes_delta(
     expiry_delta = np.where(
         S > K,
         1.0,
-        np.where(S < K, 0.0, 0.5)
+        np.where(S < K, 0.0, 0.5),
     )
 
     delta = np.where(
         tau == 0,
         expiry_delta,
-        delta
+        delta,
     )
 
     return _scalar_if_scalar(delta)

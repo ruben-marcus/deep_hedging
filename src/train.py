@@ -1,4 +1,5 @@
 import copy
+from collections import defaultdict
 from typing import Any, Callable
 
 import numpy as np
@@ -9,13 +10,16 @@ from torch.utils.data import DataLoader
 # run_batch(model, batch) -> pnl of shape (batch_size,)
 RunBatch = Callable[[nn.Module, Any], torch.Tensor]
 
+# same, but returning the whole run_hedge_torch dict instead of just pnl
+RunBatchResult = Callable[[nn.Module, Any], dict[str, torch.Tensor]]
+
 
 def train_one_epoch(
     model: nn.Module,
     loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     loss_fn: Callable[[torch.Tensor], torch.Tensor],
-    run_batch: RunBatch
+    run_batch: RunBatch,
 ) -> float:
     """one pass over loader, returns sample-weighted mean loss"""
 
@@ -45,7 +49,7 @@ def evaluate_loss(
     model: nn.Module,
     loader: DataLoader,
     loss_fn: Callable[[torch.Tensor], torch.Tensor],
-    run_batch: RunBatch
+    run_batch: RunBatch,
 ) -> float:
     model.eval()
 
@@ -71,7 +75,7 @@ def fit(
     optimizer: torch.optim.Optimizer,
     loss_fn: Callable[[torch.Tensor], torch.Tensor],
     run_batch: RunBatch,
-    n_epochs: int
+    n_epochs: int,
 ) -> list[dict]:
     """
     train for n_epochs and restore weights with the best validation loss
@@ -95,20 +99,20 @@ def fit(
             loader=train_loader,
             optimizer=optimizer,
             loss_fn=loss_fn,
-            run_batch=run_batch
+            run_batch=run_batch,
         )
 
         val_loss = evaluate_loss(
             model=model,
             loader=val_loader,
             loss_fn=loss_fn,
-            run_batch=run_batch
+            run_batch=run_batch,
         )
 
         history.append({
             "epoch": epoch,
             "train_loss": train_loss,
-            "val_loss": val_loss
+            "val_loss": val_loss,
         })
 
         if val_loss < best_val_loss:
@@ -133,7 +137,7 @@ def fit(
 def collect_pnl(
     model: nn.Module,
     loader: DataLoader,
-    run_batch: RunBatch
+    run_batch: RunBatch,
 ) -> np.ndarray:
     """pnl over every path in loader, shape (n_paths,)"""
 
@@ -146,3 +150,27 @@ def collect_pnl(
         pnl_batches.append(pnl.cpu())
 
     return torch.cat(pnl_batches).numpy()
+
+
+@torch.no_grad()
+def collect_results(
+    model: nn.Module,
+    loader: DataLoader,
+    run_batch: RunBatchResult,
+) -> dict[str, np.ndarray]:
+    """like collect_pnl but keeps every diagnostic run_batch returns"""
+
+    model.eval()
+
+    batches = defaultdict(list)
+
+    for batch in loader:
+        result = run_batch(model, batch)
+
+        for key, value in result.items():
+            batches[key].append(value.cpu())
+
+    return {
+        key: torch.cat(values).numpy()
+        for key, values in batches.items()
+    }

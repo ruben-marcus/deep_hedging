@@ -4,7 +4,7 @@ import numpy.typing as npt
 from src.derivatives.european_call import (
     black_scholes_call,
     black_scholes_delta,
-    european_call_payoff
+    european_call_payoff,
 )
 
 from src.portfolio import run_hedge
@@ -18,7 +18,7 @@ def run_delta_hedge(
     r: float = 0.0,
     transaction_cost_rate: float = 0.0,
     record_history: bool = False,
-    initial_premium: npt.ArrayLike | None = None
+    initial_premium: npt.ArrayLike | None = None,
 ) -> dict[str, np.ndarray]:
     """
     benchmark policy: rebalance to black-scholes delta at every step
@@ -39,7 +39,7 @@ def run_delta_hedge(
             sigma=sigma,
             T=T,
             t=0.0,
-            r=r
+            r=r,
         )
     else:
         premium = initial_premium
@@ -51,7 +51,7 @@ def run_delta_hedge(
             sigma=sigma,
             T=T,
             t=t,
-            r=r
+            r=r,
         )
 
     def payoff_fn(S_T):
@@ -65,5 +65,5 @@ def run_delta_hedge(
         T=T,
         r=r,
         transaction_cost_rate=transaction_cost_rate,
-        record_history=record_history
+        record_history=record_history,
     )

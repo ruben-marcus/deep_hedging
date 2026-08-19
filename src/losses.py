@@ -1,4 +1,5 @@
 import math
+
 import torch
 from torch import nn
 
@@ -16,7 +17,7 @@ class MSEHedgingLoss(nn.Module):
 class CVaRLoss(nn.Module):
     """
     conditional value at risk of the loss -pnl
-    mean of the worst (1 - alpha) tail (only penalizes downside)
+    mean of the worst (1 - alpha) fraction (only penalizes downside)
     uses the rockafellar-uryasev form: 
     eta is a learned parameter, passed to optimizer alongside model params
     """
