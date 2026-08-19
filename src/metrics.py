@@ -5,16 +5,6 @@ import numpy.typing as npt
 import torch
 
 
-def mse_hedging_loss(pnl: torch.Tensor) -> torch.Tensor:
-    """
-    functional form of MSEHedgingLoss, kept for notebooks 05-07
-
-    for new stuff use classes in src.losses
-    """
-
-    return torch.mean(pnl**2)
-
-
 def _as_numpy(x: npt.ArrayLike | torch.Tensor) -> np.ndarray:
     """accept numpy or torch, gives back a flat float array"""
 

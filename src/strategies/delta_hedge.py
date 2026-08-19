@@ -1,13 +1,13 @@
 import numpy as np
 import numpy.typing as npt
 
-from src.derivatives.european_call import (
+from derivatives.european_call import (
     black_scholes_call,
     black_scholes_delta,
     european_call_payoff,
 )
 
-from src.portfolio import run_hedge
+from portfolio import run_hedge
 
 
 def run_delta_hedge(

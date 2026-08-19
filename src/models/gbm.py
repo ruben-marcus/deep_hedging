@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.models.base import SimulationResult
+from models.base import SimulationResult
 
 
 def simulate_gbm(

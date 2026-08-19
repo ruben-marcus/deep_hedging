@@ -16,6 +16,41 @@ def _scalar_if_scalar(x: npt.ArrayLike) -> FloatOrArray:
     return x
 
 
+def _prepare(S: npt.ArrayLike, T: float, t: npt.ArrayLike):
+    """common coercion: spot as float array, tau as time to maturity"""
+
+    S = np.asarray(S, dtype=float)
+    tau = np.asarray(T, dtype=float) - np.asarray(t, dtype=float)
+
+    return S, tau
+
+
+def _validate(S, K: float, sigma: float, tau) -> None:
+    if np.any(S <= 0):
+        raise ValueError("S must be positive")
+
+    if K <= 0:
+        raise ValueError("K must be positive")
+
+    if sigma <= 0:
+        raise ValueError("sigma must be positive")
+
+    if np.any(tau < 0):
+        raise ValueError("t cannot be greater than T")
+
+
+def _d1_d2(S, K: float, sigma: float, tau, r: float):
+    """tau == 0 gives inf/nan, callers overwrite those entries"""
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sqrt_tau = np.sqrt(tau)
+
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
+        d2 = d1 - sigma * sqrt_tau
+
+    return d1, d2
+
+
 def european_call_payoff(S: npt.ArrayLike, K: float) -> FloatOrArray:
     """terminal payoff max(S - K, 0) of a european call"""
 
@@ -63,29 +98,11 @@ def black_scholes_call(
         call price, same shape as S
     """
 
-    S = np.asarray(S, dtype=float)
-    tau = np.asarray(T, dtype=float) - np.asarray(t, dtype=float)
+    S, tau = _prepare(S, T, t)
+    _validate(S, K, sigma, tau)
+    d1, d2 = _d1_d2(S, K, sigma, tau, r)
 
-    if np.any(S <= 0):
-        raise ValueError("S must be positive")
-
-    if K <= 0:
-        raise ValueError("K must be positive")
-
-    if sigma <= 0:
-        raise ValueError("sigma must be positive")
-
-    if np.any(tau < 0):
-        raise ValueError("t cannot be greater than T")
-
-    # avoid dividing by tau=0
-    with np.errstate(divide="ignore", invalid="ignore"):
-        sqrt_tau = np.sqrt(tau)
-
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
-        d2 = d1 - sigma * sqrt_tau
-
-        price = S * ndtr(d1) - K * np.exp(-r * tau) * ndtr(d2)
+    price = S * ndtr(d1) - K * np.exp(-r * tau) * ndtr(d2)
 
     # at expiry use payoff directly
     price = np.where(
@@ -112,27 +129,11 @@ def black_scholes_delta(
     hedge ratio used as benchmark policy: shares to hold per short call
     """
 
-    S = np.asarray(S, dtype=float)
-    tau = np.asarray(T, dtype=float) - np.asarray(t, dtype=float)
+    S, tau = _prepare(S, T, t)
+    _validate(S, K, sigma, tau)
+    d1, d2 = _d1_d2(S, K, sigma, tau, r)
 
-    if np.any(S <= 0):
-        raise ValueError("S must be positive")
-
-    if K <= 0:
-        raise ValueError("K must be positive")
-
-    if sigma <= 0:
-        raise ValueError("sigma must be positive")
-
-    if np.any(tau < 0):
-        raise ValueError("t cannot be greater than T")
-
-    # avoid dividing by tau=0
-    with np.errstate(divide="ignore", invalid="ignore"):
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2)
-              * tau) / (sigma * np.sqrt(tau))
-
-        delta = ndtr(d1)
+    delta = ndtr(d1)
 
     # convention at expiration
     expiry_delta = np.where(

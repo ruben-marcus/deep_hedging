@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 
-# eventually change to return same diagnostics as run_hedge_torch
 def run_hedge(
     stock_paths: npt.ArrayLike,
     initial_premium: npt.ArrayLike,
@@ -208,6 +207,7 @@ def run_hedge_torch(
     transaction_cost_rate: float = 0.0,
     r: float = 0.0,
     variance_scale: float = 0.04,
+    payoff_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> dict[str, torch.Tensor]:
     """
     differentiable version of run_hedge for short european call
@@ -310,11 +310,20 @@ def run_hedge_torch(
     S_T = spot_paths[:, -1]
 
     terminal_portfolio = cash + shares * S_T
-    payoff = torch.relu(S_T - K)
+
+    if payoff_fn is not None:
+        payoff = payoff_fn(S_T)
+    else:
+        payoff = torch.relu(S_T - K)
+
     pnl = terminal_portfolio - payoff
 
     return {
         "pnl": pnl,
+        "payoff": payoff,
+        "terminal_portfolio": terminal_portfolio,
+        "terminal_cash": cash,
+        "terminal_shares": shares,
         "transaction_costs": total_cost,
         "share_turnover": share_turnover,
         "notional_turnover": notional_turnover,
