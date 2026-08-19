@@ -1,7 +1,5 @@
-import math
-
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
 
 from src.derivatives.european_call import (
     black_scholes_call,
@@ -13,15 +11,23 @@ from src.portfolio import run_hedge
 
 
 def run_delta_hedge(
-    stock_paths,
-    K,
-    sigma,
-    T,
-    r=0.0,
-    transaction_cost_rate=0.0,
-    record_history=False,
-    initial_premium=None
-):
+    stock_paths: npt.ArrayLike,
+    K: float,
+    sigma: float,
+    T: float,
+    r: float = 0.0,
+    transaction_cost_rate: float = 0.0,
+    record_history: bool = False,
+    initial_premium: npt.ArrayLike | None = None
+) -> dict[str, np.ndarray]:
+    """
+    benchmark policy: rebalance to black-scholes delta at every step
+
+    initial_premium defaults to the black-scholes price at t=0
+
+    returns same dict as run_hedge
+    """
+
     stock_paths = np.asarray(stock_paths, dtype=float)
 
     S0 = stock_paths[:, 0]

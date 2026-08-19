@@ -8,7 +8,7 @@ class SimulationResult:
     output of a path simulator
 
     spot : np.ndarray
-        shape (n_paths, n_steps + 1)
+        shape (n_paths, n_steps + 1), column 0 is initial price
 
     variance : np.ndarray or None
         instantaneous variance, same shape as spot

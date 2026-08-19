@@ -1,14 +1,24 @@
 import copy
+from typing import Any, Callable
+
+import numpy as np
 import torch
+from torch import nn
+from torch.utils.data import DataLoader
+
+# run_batch(model, batch) -> pnl of shape (batch_size,)
+RunBatch = Callable[[nn.Module, Any], torch.Tensor]
 
 
 def train_one_epoch(
-    model,
-    loader,
-    optimizer,
-    loss_fn,
-    run_batch
-):
+    model: nn.Module,
+    loader: DataLoader,
+    optimizer: torch.optim.Optimizer,
+    loss_fn: Callable[[torch.Tensor], torch.Tensor],
+    run_batch: RunBatch
+) -> float:
+    """one pass over loader, returns sample-weighted mean loss"""
+
     model.train()
 
     total_loss = 0.0
@@ -32,11 +42,11 @@ def train_one_epoch(
 
 @torch.no_grad()
 def evaluate_loss(
-    model,
-    loader,
-    loss_fn,
-    run_batch
-):
+    model: nn.Module,
+    loader: DataLoader,
+    loss_fn: Callable[[torch.Tensor], torch.Tensor],
+    run_batch: RunBatch
+) -> float:
     model.eval()
 
     total_loss = 0.0
@@ -55,14 +65,24 @@ def evaluate_loss(
 
 
 def fit(
-    model,
-    train_loader,
-    val_loader,
-    optimizer,
-    loss_fn,
-    run_batch,
-    n_epochs
-):
+    model: nn.Module,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    optimizer: torch.optim.Optimizer,
+    loss_fn: Callable[[torch.Tensor], torch.Tensor],
+    run_batch: RunBatch,
+    n_epochs: int
+) -> list[dict]:
+    """
+    train for n_epochs and restore weights with the best validation loss
+
+    pass loss parameters (e.g. eta of CVaRLoss) to optimizer as well
+
+    returns
+    -------
+    list of dicts, one per epoch, with epoch, train_loss, and val_loss
+    """
+
     history = []
 
     best_val_loss = float("inf")
@@ -110,7 +130,13 @@ def fit(
 
 
 @torch.no_grad()
-def collect_pnl(model, loader, run_batch):
+def collect_pnl(
+    model: nn.Module,
+    loader: DataLoader,
+    run_batch: RunBatch
+) -> np.ndarray:
+    """pnl over every path in loader, shape (n_paths,)"""
+
     model.eval()
 
     pnl_batches = []

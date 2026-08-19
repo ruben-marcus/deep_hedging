@@ -19,6 +19,42 @@ def simulate_heston(
     """
     simulate heston using full-truncation euler for variance and log-euler for stocks
 
+    parameters
+    ----------
+    S0 : float
+        initial stock price
+
+    v0 : float
+        initial instantaneous variance (volatility**2)
+
+    kappa : float
+        mean-reversion speed of variance
+
+    theta : float
+        long-run average variance
+
+    xi : float
+        volatility of variance (vol-of-vol)
+
+    rho : float
+        correlation between spot and variance shocks
+        (almost always negative)
+
+    T : float
+        time horizon in years
+
+    n_steps : int
+        number of simulation/hedging steps
+
+    n_paths : int
+        number of monte carlo paths
+
+    r : float
+        risk-free rate
+
+    seed : int or None
+        random seed for reproducibility
+
     returns
     -------
     SimulationResult
