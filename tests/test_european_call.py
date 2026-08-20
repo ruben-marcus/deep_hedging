@@ -15,7 +15,7 @@ def test_reference_value(market):
     """regression pin: atm, 20% vol, 1y, zero rates"""
 
     price = black_scholes_call(
-        S0=market["S0"],
+        S=market["S0"],
         K=market["K"],
         sigma=market["sigma"],
         T=market["T"],

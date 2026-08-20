@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from derivatives.european_call import black_scholes_call, european_call_payoff
+from derivatives.european_call import black_scholes_call
 from models.gbm import simulate_gbm
 from portfolio import build_state, run_hedge, run_hedge_torch
 from strategies.delta_hedge import run_delta_hedge
@@ -147,7 +147,7 @@ def test_torch_matches_numpy_for_same_policy(market, bs_policy):
     )
 
     premium = black_scholes_call(
-        S0=market["S0"],
+        S=market["S0"],
         K=K,
         sigma=sigma,
         T=T,
@@ -187,6 +187,42 @@ def test_torch_matches_numpy_for_same_policy(market, bs_policy):
     )
 
 
+def test_torch_payoff_fn_default(market, constant_policy):
+    sim = simulate_gbm(
+        S0=market["S0"],
+        sigma=market["sigma"],
+        T=1.0,
+        n_steps=10,
+        n_paths=50,
+        seed=18,
+    )
+
+    spot = torch.tensor(sim.spot, dtype=torch.float32)
+    variance = torch.tensor(np.asarray(sim.variance), dtype=torch.float32)
+
+    kwargs = dict(
+        model=constant_policy,
+        spot_paths=spot,
+        variance_paths=variance,
+        K=market["K"],
+        T=1.0,
+        premium=8.0,
+    )
+
+    default = run_hedge_torch(**kwargs)
+    explicit = run_hedge_torch(
+        **kwargs,
+        payoff_fn=lambda S_T: torch.relu(S_T - market["K"]),
+    )
+
+    assert torch.equal(default["pnl"], explicit["pnl"])
+
+    assert torch.allclose(
+        default["payoff"],
+        torch.relu(spot[:, -1] - market["K"])
+    )
+
+
 def test_torch_is_differentiable(market):
     """gradients must reach the policy"""
 
@@ -198,7 +234,7 @@ def test_torch_is_differentiable(market):
         T=1.0,
         n_steps=10,
         n_paths=100,
-        seed=18,
+        seed=19,
     )
 
     result = run_hedge_torch(

@@ -110,5 +110,5 @@ def test_log_return_moments(market):
     ), "n_paths must be positive"),
 ])
 def test_validation(kwargs, message):
-    with pytest.raises(ValueError, math=message):
+    with pytest.raises(ValueError, match=message):
         simulate_gbm(**kwargs)

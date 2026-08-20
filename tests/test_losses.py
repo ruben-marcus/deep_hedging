@@ -34,7 +34,7 @@ def test_cvar_loss_at_optimal_eta_equals_empirical_cvar(pnl):
         empirical_cvar(pnl, alpha=alpha), rel=0.01
     )
 
-    assert float(loss_fn.detach()) == pytest.approx(
+    assert float(loss_fn.eta.detach()) == pytest.approx(
         float(np.quantile(-pnl.numpy(), alpha)), rel=0.05
     )
 
@@ -53,5 +53,5 @@ def test_entropic_is_numerically_stable():
 
 @pytest.mark.parametrize("risk_aversion", [0.0, -1.0])
 def test_entropic_rejects_bad_risk_aversion(risk_aversion):
-    with pytest.raises(ValueError, match="risk aversion must be positive"):
+    with pytest.raises(ValueError, match="risk_aversion must be positive"):
         EntropicRiskLoss(risk_aversion=risk_aversion)

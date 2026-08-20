@@ -29,7 +29,7 @@ def test_cvar_matches_analytic_normal(alpha):
     )
 
 
-def test_cvar_increase_with_alpha():
+def test_cvar_increases_with_alpha():
     """deeper tail is worse"""
 
     pnl = np.random.default_rng(13).standard_normal(100_000)

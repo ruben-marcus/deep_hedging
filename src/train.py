@@ -122,6 +122,12 @@ def fit(
             if isinstance(loss_fn, torch.nn.Module):
                 best_loss_state = copy.deepcopy(loss_fn.state_dict())
 
+    # nan compares False against everything, so diverged run never sets a best state
+    if best_model_state is None:
+        raise RuntimeError(
+            "training diverged: no epoch produced a finite validation loss"
+        )
+
     model.load_state_dict(best_model_state)
 
     if (

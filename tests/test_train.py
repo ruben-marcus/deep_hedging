@@ -3,10 +3,52 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+from models.gbm import simulate_gbm
+from portfolio import run_hedge_torch
 from experiment import get_device, set_seeds
 from losses import CVaRLoss, MSEHedgingLoss
 from strategies.neural_hedge import NeuralHedge
 from train import collect_pnl, evaluate_loss, fit
+
+
+@pytest.fixture
+def dataset(market):
+    sim = simulate_gbm(
+        S0=market["S0"],
+        sigma=market["sigma"],
+        T=1.0,
+        n_steps=10,
+        n_paths=200,
+        seed=19,
+    )
+
+    spot = torch.tensor(sim.spot, dtype=torch.float32)
+    variance = torch.tensor(np.asarray(sim.variance), dtype=torch.float32)
+
+    return TensorDataset(spot, variance)
+
+
+@pytest.fixture
+def loader(dataset):
+    return DataLoader(dataset, batch_size=50, shuffle=False)
+
+
+@pytest.fixture
+def run_batch(market):
+    def _run_batch(model, batch):
+        spot, variance = batch
+
+        return run_hedge_torch(
+            model=model,
+            spot_paths=spot,
+            variance_paths=variance,
+            K=market["K"],
+            T=1.0,
+            premium=8.0,
+            transaction_cost_rate=0.001,
+        )["pnl"]
+
+    return _run_batch
 
 
 def test_fit_reduces_loss(loader, run_batch):
@@ -18,12 +60,12 @@ def test_fit_reduces_loss(loader, run_batch):
         train_loader=loader,
         val_loader=loader,
         optimizer=torch.optim.Adam(model.parameters(), lr=1e-2),
-        loss_fn=MSEHedgingLoss,
+        loss_fn=MSEHedgingLoss(),
         run_batch=run_batch,
         n_epochs=5,
     )
 
-    assert history[-1]["train-loss"] < history[0]["train_loss"]
+    assert history[-1]["train_loss"] < history[0]["train_loss"]
 
 
 class _SingleWeight(torch.nn.Module):
@@ -56,19 +98,19 @@ def test_fit_restores_best_weights():
     loader = DataLoader(dataset, batch_size=10, shuffle=False)
 
     model = _SingleWeight(start=0.0)
-    loss_fn = MSEHedgingLoss
+    loss_fn = MSEHedgingLoss()
 
     history = fit(
         model=model,
         train_loader=loader,
         val_loader=loader,
-        optimizer=torch.optim.SGD(model.paramters(), lr=1.1),
+        optimizer=torch.optim.SGD(model.parameters(), lr=1.1),
         loss_fn=loss_fn,
         run_batch=_quadratic_run_batch,
         n_epochs=5,
     )
 
-    val_losses = [h["val_losses"] for h in history]
+    val_losses = [h["val_loss"] for h in history]
 
     assert val_losses == sorted(val_losses), "expected steadily worse epochs"
     assert min(val_losses) == val_losses[0]
@@ -101,7 +143,7 @@ def test_fit_reports_divergence():
             train_loader=loader,
             val_loader=loader,
             optimizer=torch.optim.SGD(model.parameters(), lr=0.1),
-            loss_fn=MSEHedgingLoss,
+            loss_fn=MSEHedgingLoss(),
             run_batch=_quadratic_run_batch,
             n_epochs=5
         )

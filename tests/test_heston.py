@@ -49,11 +49,11 @@ def test_terminal_mean_is_forward(heston_params):
 def test_zero_vol_of_vol_freezes_variance(heston_params):
     """xi = 0 and v0 = theta: heston -> gbm with sigma = sqrt(theta)"""
 
-    params = dict(
+    params = {
         **heston_params,
-        xi=0.0,
-        v0=heston_params["theta"]
-    )
+        "xi": 0.0,
+        "v0": heston_params["theta"],
+    }
 
     sim = simulate_heston(
         **params,
@@ -78,15 +78,16 @@ def test_zero_vol_of_vol_freezes_variance(heston_params):
     (dict(kappa=-2.0), "kappa must be non-negative"),
     (dict(theta=-0.04), "theta must be non-negative"),
     (dict(xi=-0.30), "xi must be non-negative"),
-    (dict(rho=1.5), "rho must lie in [-1, 1]"),
+    (dict(rho=1.5), r"rho must lie in \[-1, 1\]"),
     (dict(T=0.0), "T must be positive"),
 ])
 def test_validation(heston_params, override, message):
-    params = dict(
+    params = {
         **heston_params,
         **override,
-        n_steps=5,
-        n_paths=5,
-    )
-    with pytest.raises(ValueError, math=message):
+        "n_steps": 5,
+        "n_paths": 5,
+    }
+
+    with pytest.raises(ValueError, match=message):
         simulate_heston(**params)
