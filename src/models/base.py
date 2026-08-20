@@ -16,7 +16,7 @@ class SimulationResult:
     """
 
     spot: np.ndarray
-    variance: np.ndarray | None = None
+    variance: np.ndarray
 
     def __post_init__(self):
         if self.variance is not None and self.variance.shape != self.spot.shape:

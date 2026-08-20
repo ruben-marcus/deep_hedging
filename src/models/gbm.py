@@ -75,4 +75,6 @@ def simulate_gbm(
     paths[:, 0] = S0
     paths[:, 1:] = S0 * np.exp(log_paths)
 
-    return SimulationResult(spot=paths, variance=None)
+    variance = np.broadcast_to(sigma**2, paths.shape)
+
+    return SimulationResult(spot=paths, variance=variance)

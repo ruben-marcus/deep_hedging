@@ -45,7 +45,11 @@ def _d1_d2(S, K: float, sigma: float, tau, r: float):
     with np.errstate(divide="ignore", invalid="ignore"):
         sqrt_tau = np.sqrt(tau)
 
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * sqrt_tau)
+        d1 = (
+            np.log(S / K)
+            + (r + 0.5 * sigma**2) * tau
+        ) / (sigma * sqrt_tau)
+
         d2 = d1 - sigma * sqrt_tau
 
     return d1, d2

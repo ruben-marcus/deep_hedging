@@ -31,7 +31,7 @@ def empirical_cvar(
 
     losses = -pnl
 
-    tail_count = max(1, int(np.ceil((1.0 - alpha) * n)))
+    tail_count = max(1, int(np.ceil(round((1.0 - alpha) * n, 6))))
 
     # partition puts the tail_count largest losses last
     worst_losses = np.partition(losses, n - tail_count)[n - tail_count:]
